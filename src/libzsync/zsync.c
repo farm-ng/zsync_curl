@@ -137,7 +137,7 @@ static char **append_ptrlist(int *n, char **p, char *a) {
 }
 
 /* Constructor */
-struct zsync_state *zsync_begin(FILE * f, int readBlockSums) {
+struct zsync_state *zsync_begin(FILE * f, int readBlockSums, const char* urlOverride) {
     /* Defaults for the checksum bytes and sequential matches properties of the
      * rcksum_state. These are the defaults from versions of zsync before these
      * were variable. */
@@ -157,6 +157,9 @@ struct zsync_state *zsync_begin(FILE * f, int readBlockSums) {
 
     /* Any non-zero defaults here. */
     zs->mtime = -1;
+
+    if (urlOverride)
+        zs->url = (char **)append_ptrlist(&(zs->nurl), zs->url, strdup(urlOverride));
 
     for (;;) {
         char buf[1024];
@@ -202,7 +205,8 @@ struct zsync_state *zsync_begin(FILE * f, int readBlockSums) {
                 zs->zfilename = strdup(p);
             }
             else if (!strcmp(buf, "URL")) {
-                zs->url = (char **)append_ptrlist(&(zs->nurl), zs->url, strdup(p));
+                if (!urlOverride)
+                    zs->url = (char **)append_ptrlist(&(zs->nurl), zs->url, strdup(p));
             }
             else if (!strcmp(buf, "Z-URL")) {
                 zs->zurl = (char **)append_ptrlist(&(zs->nzurl), zs->zurl, strdup(p));

@@ -1,4 +1,11 @@
-# zsync-curl
+## farm-ng notes!!
+
+This is a patched version of zsync-curl that makes -u override the URL in the .zsync file instead of overriding
+the referer of the URL. That is important for downloading from AWS which uses a random URL for the real file
+every time because of the access token system. The releases within this repo are built manually on the relevant
+device itself.
+
+## zsync-curl
 
 Partial/differential file download client over HTTP(S).
 

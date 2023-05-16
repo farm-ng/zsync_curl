@@ -230,7 +230,7 @@ static void **append_ptrlist(int *n, void **p, void *a) {
  * This is avoided when we just want to parse the zsync file since it avoids
  * creating a temporary file and doing the extra work.
  */
-struct zsync_state *read_zsync_control_file(char *p, const char *fn, int readBlockSums) {
+struct zsync_state *read_zsync_control_file(char *p, const char *fn, int readBlockSums, const char* urlOverride) {
     FILE *f;
     struct zsync_state *zs;
     char *lastpath = NULL;
@@ -257,7 +257,7 @@ struct zsync_state *read_zsync_control_file(char *p, const char *fn, int readBlo
     }
 
     /* Read the .zsync */
-    if ((zs = zsync_begin(f, readBlockSums)) == NULL) {
+    if ((zs = zsync_begin(f, readBlockSums, urlOverride)) == NULL) {
         exit(1);
     }
 
@@ -603,6 +603,7 @@ int main(int argc, char **argv) {
     char *filename = NULL;
     long long local_used;
     char *zfname = NULL;
+    char *urlOverride = NULL;
     time_t mtime;
 
     static struct option long_options[] = {
@@ -654,7 +655,7 @@ int main(int argc, char **argv) {
                 no_progress = 1;
                 break;
             case 'u':
-                referer = strdup(optarg);
+                urlOverride = strdup(optarg);
                 break;
             case 'I':
                 http_ssl_insecure = 1;
@@ -698,7 +699,7 @@ int main(int argc, char **argv) {
     }
 
     /* STEP 1: Read the zsync control file */
-    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1)) == NULL)
+    if ((zs = read_zsync_control_file(argv[optind], zfname, justCheckForUpdates ? 0 : 1, urlOverride)) == NULL)
         exit(1);
 
     /* Get eventual filename for output, and filename to write to while working */

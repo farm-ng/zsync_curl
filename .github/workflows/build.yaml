@@ -4,26 +4,40 @@ on: [push, pull_request]
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner-label: X64
+          - arch: arm64
+            runner-label: ARM64
+    runs-on: [self-hosted, linux, "${{ matrix.runner-label }}", ec2, persistent, 8xlarge]
     container: ubuntu:trusty
     env:
+      GITHUB_REF: ${{ github.ref }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       TRAVIS_BUILD_NUMBER: ${{ github.run_number }}
       VERSION: continuous
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.FLEET_IMAGE_BUILDER_S3_ID }}
+          aws-secret-access-key: ${{ secrets.FLEET_IMAGE_BUILDER_S3_SECRET_KEY }}
+          aws-region: us-east-2
+
       - name: Configure build machine
         run: |
           apt update
-          apt install -y -q apt-transport-https curl git software-properties-common sudo wget make
-          # The keyboard-configuration package is needed later and requires the user to input a number via dpkg-reconfigure, so preinstall it without front-end to avoid blocking the later installations
+          apt install -y -q apt-transport-https curl git software-properties-common sudo wget make awscli
+          # The keyboard-configuration package is needed later and requires the user to input a number via
+          # dpkg-reconfigure, so preinstall it without front-end to avoid blocking the later installations
           DEBIAN_FRONTEND=noninteractive apt install -y -q keyboard-configuration
-      - name: Checkout sources
+
+      - name: Build and upload
         run: |
-          # Can't use actions/checkout@v2 action here because it needs a newer Ubuntu version, so the action downloads an archive instead of a git repository, and this prevents linuxdeployqt from finding the commit it is built from
-          # Retrieve the correct repository and branch names according to the build event (push or pull_request)
-          if [ -z "${{ github.head_ref }}" ]; then BRANCH=${{ github.ref_name }}; REPOSITORY=${{ github.repository }}; else BRANCH=${{ github.head_ref }}; REPOSITORY=${{ github.event.pull_request.head.repo.full_name }}; fi
-          echo "Cloning branch $BRANCH from repository $REPOSITORY..."
-          git clone --depth=1 https://github.com/$REPOSITORY --branch=$BRANCH .
-      - name: Build
-        run: |
-          bash -ex semistaticbuild.sh
+          bash -uexo pipefail build_and_upload.sh
